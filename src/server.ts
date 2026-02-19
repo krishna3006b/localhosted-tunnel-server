@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import { WebSocketServer } from 'ws';
 import { TunnelRegistry } from './registry';
 import { setupWebSocketHandler } from './wsHandler';
-import { createProxyMiddleware } from './proxy';
+import { createProxyMiddleware, createPathBasedProxy } from './proxy';
 
 // ─── Configuration ────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -111,8 +111,13 @@ app.get('/', (req, res, next) => {
 });
 
 // ─── Proxy Middleware ─────────────────────────────────────────
-// This catches ALL requests on subdomains and forwards them
-// through the appropriate WebSocket tunnel.
+// Path-based routing: /t/<subdomain>/... — works with Railway SSL
+// This is the primary mode when using Railway's *.up.railway.app domain
+app.all('/t/:subdomain/*', createPathBasedProxy(registry));
+app.all('/t/:subdomain', createPathBasedProxy(registry));
+
+// Subdomain-based routing: <subdomain>.localhosted.live/...
+// This kicks in when using a custom domain with wildcard DNS
 app.use(createProxyMiddleware(registry, DOMAIN));
 
 // ─── 404 Fallback ─────────────────────────────────────────────

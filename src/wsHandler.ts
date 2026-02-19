@@ -68,7 +68,8 @@ export function setupWebSocketHandler(wss: WebSocket.Server, registry: TunnelReg
 
                 const client = registry.register(subdomain, localPort, ws);
 
-                const tunnelUrl = `https://${subdomain}.${domain}`;
+                // Use path-based URL (works with Railway SSL, no wildcard cert needed)
+                const tunnelUrl = `https://${domain}/t/${subdomain}`;
 
                 // Send tunnel-ready message to the client
                 ws.send(JSON.stringify({

@@ -3,6 +3,80 @@ import { v4 as uuidv4 } from 'uuid';
 import { TunnelRegistry, TunnelRequest } from './registry';
 
 /**
+ * Path-based proxy handler for /t/<subdomain>/...
+ * Works with Railway's SSL cert since no wildcard subdomains are needed.
+ * URL format: https://server.up.railway.app/t/swift-app-x8k2/api/hello
+ */
+export function createPathBasedProxy(registry: TunnelRegistry) {
+    return async (req: Request, res: Response): Promise<void> => {
+        const rawSubdomain = req.params.subdomain;
+        const subdomain = Array.isArray(rawSubdomain) ? rawSubdomain[0] : rawSubdomain;
+
+        if (!subdomain) {
+            res.status(400).json({ error: 'Missing subdomain parameter' });
+            return;
+        }
+
+        const client = registry.get(subdomain);
+        if (!client) {
+            res.status(502).json({
+                error: 'Tunnel Not Found',
+                message: `No active tunnel for "${subdomain}". The developer may have disconnected.`,
+                subdomain,
+            });
+            return;
+        }
+
+        // Strip the /t/<subdomain> prefix to get the actual path
+        const actualPath = req.params[0] ? `/${req.params[0]}` : '/';
+        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+
+        const tunnelRequest: TunnelRequest = {
+            id: uuidv4(),
+            method: req.method,
+            path: actualPath + queryString,
+            headers: flattenHeaders(req.headers),
+            body: await readBody(req),
+        };
+
+        console.log(`[Proxy] ${req.method} /t/${subdomain}${actualPath} → tunnel ${client.id}`);
+
+        try {
+            const tunnelResponse = await registry.forwardRequest(subdomain, tunnelRequest);
+
+            for (const [key, value] of Object.entries(tunnelResponse.headers)) {
+                if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+                    res.setHeader(key, value);
+                }
+            }
+
+            res.setHeader('X-Powered-By', 'LocalHosted');
+            res.setHeader('X-Tunnel-Subdomain', subdomain);
+
+            res.status(tunnelResponse.statusCode);
+
+            if (tunnelResponse.body) {
+                const bodyBuffer = Buffer.from(tunnelResponse.body, 'base64');
+                res.end(bodyBuffer);
+            } else {
+                res.end();
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            console.error(`[Proxy] Error forwarding to ${subdomain}:`, message);
+
+            if (message.includes('timed out')) {
+                res.status(504).json({ error: 'Gateway Timeout', message: 'Local server did not respond in time.', subdomain });
+            } else if (message.includes('disconnected') || message.includes('not open')) {
+                res.status(502).json({ error: 'Bad Gateway', message: 'Tunnel connection was lost.', subdomain });
+            } else {
+                res.status(502).json({ error: 'Bad Gateway', message: `Failed to proxy: ${message}`, subdomain });
+            }
+        }
+    };
+}
+
+/**
  * Express middleware that intercepts HTTP requests on subdomains
  * and forwards them through the corresponding tunnel.
  *
