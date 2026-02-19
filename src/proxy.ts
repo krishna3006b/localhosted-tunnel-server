@@ -28,7 +28,9 @@ export function createPathBasedProxy(registry: TunnelRegistry) {
         }
 
         // Strip the /t/<subdomain> prefix to get the actual path
-        const actualPath = req.params[0] ? `/${req.params[0]}` : '/';
+        const rawPath = req.params.path;
+        const pathStr = Array.isArray(rawPath) ? rawPath.join('/') : (rawPath || '');
+        const actualPath = pathStr ? `/${pathStr}` : '/';
         const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
 
         const tunnelRequest: TunnelRequest = {

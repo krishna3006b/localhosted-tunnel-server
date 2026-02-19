@@ -113,7 +113,7 @@ app.get('/', (req, res, next) => {
 // ─── Proxy Middleware ─────────────────────────────────────────
 // Path-based routing: /t/<subdomain>/... — works with Railway SSL
 // This is the primary mode when using Railway's *.up.railway.app domain
-app.all('/t/:subdomain/*', createPathBasedProxy(registry));
+app.all('/t/:subdomain/*path', createPathBasedProxy(registry));
 app.all('/t/:subdomain', createPathBasedProxy(registry));
 
 // Subdomain-based routing: <subdomain>.localhosted.live/...
