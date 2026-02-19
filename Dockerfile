@@ -27,6 +27,6 @@ COPY --from=builder /app/dist ./dist
 # Railway injects PORT env var
 ENV NODE_ENV=production
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["node", "dist/server.js"]

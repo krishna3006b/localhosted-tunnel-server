@@ -8,8 +8,8 @@ import { setupWebSocketHandler } from './wsHandler';
 import { createProxyMiddleware } from './proxy';
 
 // ─── Configuration ────────────────────────────────────────────
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const DOMAIN = process.env.DOMAIN || 'localhosted.live';
+const PORT = parseInt(process.env.PORT || '8080', 10);
+const DOMAIN = process.env.DOMAIN || 'localhosted-tunnel-server-production.up.railway.app';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // ─── Initialise ───────────────────────────────────────────────
